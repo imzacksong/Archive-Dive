@@ -1,6 +1,10 @@
 # Archive-Dive
 Infinite Scroll TikTok-Styled Android App for Internet Archive Video Content
 
+
+<img width="2048" height="2048" alt="Archive Dive Logo" src="https://github.com/user-attachments/assets/55adad49-a074-4995-a64c-a9ecdc5d1fd1" />
+
+
 **Doomscroll the Past.**
 
 Archive Dive is a unique video streaming experience that brings the vast, eccentric, and historical collection of the **Internet Archive** to your mobile device in a modern, vertical video feed. Think of it as "TikTok for the 20th Century."
