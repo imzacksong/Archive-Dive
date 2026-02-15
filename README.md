@@ -2,7 +2,7 @@
 Infinite Scroll TikTok-Styled Android App for Internet Archive Video Content
 
 
-<img width="1024" height="1024" alt="Archive Dive Logo" src="https://github.com/user-attachments/assets/55adad49-a074-4995-a64c-a9ecdc5d1fd1" />
+<img width="512" height="512" alt="Archive Dive Logo" src="https://github.com/user-attachments/assets/55adad49-a074-4995-a64c-a9ecdc5d1fd1" />
 
 
 **Doomscroll the Past.**
