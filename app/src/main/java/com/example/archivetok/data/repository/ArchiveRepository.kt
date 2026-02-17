@@ -149,7 +149,8 @@ class ArchiveRepository @Inject constructor(
                 com.example.archivetok.data.model.MetadataResult(
                     videoUrls = uniqueUrls,
                     isMultiPart = uniqueUrls.size > 1,
-                    fileCount = uniqueUrls.size
+                    fileCount = uniqueUrls.size,
+                    reviews = metadata.reviews ?: emptyList()
                 )
             } else {
                 null

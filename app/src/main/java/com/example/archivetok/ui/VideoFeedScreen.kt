@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -81,6 +82,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -99,7 +102,22 @@ fun VideoFeedScreen(
     // TUTORIAL STATE (Hoisted)
     var showTutorial by remember { mutableStateOf(!viewModel.isTutorialShown() && viewModel.isOnboardingCompleted()) }
     
-    // SPLASH SCREEN STATE
+    // FULL SCREEN & FILTER STATE (Hoisted)
+    var isFullScreen by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val currentFilter by viewModel.filterDecade.collectAsState()
+    val currentLanguage by viewModel.filterLanguage.collectAsState()
+    
+
+    
+    // COMMENTS STATE
+    var showCommentsSheet by remember { mutableStateOf(false) }
+    var currentReviews by remember { mutableStateOf<List<com.example.archivetok.data.model.ArchiveReview>>(emptyList()) }
+
+    // DESCRIPTION STATE
+    var showDescriptionSheet by remember { mutableStateOf(false) }
+    var currentDescriptionItem by remember { mutableStateOf<ArchiveItem?>(null) }
+
     var showSplash by remember { mutableStateOf(true) }
     
     LaunchedEffect(Unit) {
@@ -161,10 +179,22 @@ fun VideoFeedScreen(
                      viewModel = viewModel,
                      isSelected = pagerState.currentPage == page,
                      isTutorialActive = showTutorial,
+                     isFullScreen = isFullScreen,
+                     onToggleFullScreen = { isFullScreen = !isFullScreen },
                      onBookmark = { viewModel.toggleBookmark(item) },
                      onOpenSource = {
                           val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://archive.org/details/${item.identifier}"))
+
                           context.startActivity(browserIntent)
+                     },
+                     onShowComments = {
+                          val result = videoUrls[item.identifier]
+                          currentReviews = result?.reviews ?: emptyList()
+                          showCommentsSheet = true
+                     },
+                     onShowDescription = {
+                          currentDescriptionItem = item
+                          showDescriptionSheet = true
                      }
                  )
             }
@@ -188,76 +218,101 @@ fun VideoFeedScreen(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         }
 
-        // Top Bar
-        // REBRANDING: Added Title
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 48.dp),
-             horizontalAlignment = Alignment.CenterHorizontally
+        // Top Bar & Filter
+        AnimatedVisibility(
+            visible = !isFullScreen,
+            enter = fadeIn(),
+            exit = fadeOut()
         ) {
-            Text(
-                text = "Archive Dive",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            
-            Row(
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "Explore",
-                    color = if (!showBookmarks) Color.White else Color.Gray,
-                    fontWeight = if (!showBookmarks) FontWeight.Bold else FontWeight.Normal,
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Top Bar
+                Column(
                     modifier = Modifier
-                        .clickable { if (showBookmarks) viewModel.toggleShowBookmarks() }
-                        .padding(8.dp)
-                )
-                Text(
-                    text = "|",
-                    color = Color.Gray,
-                    modifier = Modifier.padding(8.dp)
-                )
-                Text(
-                    text = "Saved",
-                    color = if (showBookmarks) Color.White else Color.Gray,
-                    fontWeight = if (showBookmarks) FontWeight.Bold else FontWeight.Normal,
+                        .align(Alignment.TopCenter)
+                        .padding(top = 48.dp),
+                     horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Archive Dive",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    
+                    Row(
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Explore",
+                            color = if (!showBookmarks) Color.White else Color.Gray,
+                            fontWeight = if (!showBookmarks) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier
+                                .clickable { if (showBookmarks) viewModel.toggleShowBookmarks() }
+                                .padding(8.dp)
+                        )
+                        Text(
+                            text = "|",
+                            color = Color.Gray,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                        Text(
+                            text = "Saved",
+                            color = if (showBookmarks) Color.White else Color.Gray,
+                            fontWeight = if (showBookmarks) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier
+                                .clickable { if (!showBookmarks) viewModel.toggleShowBookmarks() }
+                                .padding(8.dp)
+                        )
+                    }
+                }
+
+                // Filter Icon (Top Right)
+                Box(
                     modifier = Modifier
-                        .clickable { if (!showBookmarks) viewModel.toggleShowBookmarks() }
-                        .padding(8.dp)
-                )
+                        .align(Alignment.TopEnd)
+                        .padding(top = 48.dp, end = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.FilterList,
+                        contentDescription = "Filter",
+                        tint = if (currentFilter != null || currentLanguage != null) Color.Yellow else Color.White,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clickable { showFilterSheet = true }
+                    )
+                }
             }
         }
 
-        // Filter Icon (Top Right)
-        var showFilterSheet by remember { mutableStateOf(false) }
-        val currentFilter by viewModel.filterDecade.collectAsState()
-        val currentLanguage by viewModel.filterLanguage.collectAsState()
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 48.dp, end = 16.dp)
-        ) {
-            Icon(
-                imageVector = androidx.compose.material.icons.Icons.Default.FilterList, // Use FilterList or similar
-                contentDescription = "Filter",
-                tint = if (currentFilter != null || currentLanguage != null) Color.Yellow else Color.White,
-                modifier = Modifier
-                    .size(28.dp)
-                    .clickable { showFilterSheet = true }
-            )
-        }
 
         if (showFilterSheet) {
+            val currentTags by viewModel.selectedTags.collectAsState()
+            
             FilterBottomSheet(
                 currentFilter = currentFilter,
                 onFilterSelected = { viewModel.setFilterDecade(it) },
                 currentLanguage = currentLanguage,
                 onLanguageSelected = { viewModel.setFilterLanguage(it) },
+                currentTags = currentTags,
+                onTagsSelected = { viewModel.updateTags(it) },
                 onDismissRequest = { showFilterSheet = false }
+            )
+        }
+        
+        if (showCommentsSheet) {
+            CommentsBottomSheet(
+                reviews = currentReviews,
+                onDismissRequest = { showCommentsSheet = false }
+            )
+        }
+        
+        if (showDescriptionSheet && currentDescriptionItem != null) {
+            DescriptionBottomSheet(
+                title = currentDescriptionItem!!.title ?: "No Title",
+                description = currentDescriptionItem!!.description ?: "No Description",
+                onDismissRequest = { showDescriptionSheet = false }
             )
         }
         
@@ -283,12 +338,16 @@ fun VideoItem(
     viewModel: VideoFeedViewModel,
     isSelected: Boolean,
     isTutorialActive: Boolean = false, // Added param
+    isFullScreen: Boolean,
+    onToggleFullScreen: () -> Unit,
     onBookmark: () -> Unit,
-    onOpenSource: () -> Unit
+    onOpenSource: () -> Unit,
+    onShowComments: () -> Unit,
+    onShowDescription: () -> Unit
 ) {
     val context = LocalContext.current
-    // QoL: Default to FIT (Original Aspect Ratio)
-    var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
+    // QoL: Default to FIT (Original Aspect Ratio) - Feature Removed
+
     
     // Playback State (Hoisted for Overlay Visibility logic)
     var isPaused by remember { mutableStateOf(false) }
@@ -296,13 +355,48 @@ fun VideoItem(
     // Overlay Visibility State
     var areControlsVisible by remember { mutableStateOf(true) }
     
-    // Auto-hide controls when playing (override if tutorial is active)
-    LaunchedEffect(isPaused, areControlsVisible, isTutorialActive) {
+    // Full Screen Mode State (Hoisted)
+    // var isFullScreen by remember { mutableStateOf(false) } // Removed
+    
+    // System UI Controller
+    val view = androidx.compose.ui.platform.LocalView.current
+    if (!view.isInEditMode) {
+        val window = (view.context as android.app.Activity).window
+        val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, view)
+        
+        LaunchedEffect(isFullScreen) {
+            if (isFullScreen) {
+                // Hide System Bars
+                insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                // Show System Bars
+                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+    
+    // Auto-hide controls mechanism
+    // If FullScreen: Controls are HIDDEN by default. Tap Toggle.
+    // If Normal: Controls AUTO-HIDE after delay. Tap Toggle.
+    
+    LaunchedEffect(isPaused, areControlsVisible, isTutorialActive, isFullScreen) {
         if (isTutorialActive) {
             areControlsVisible = true
-        } else if (!isPaused && areControlsVisible) {
-            delay(8000) // Wait 8 seconds
-            areControlsVisible = false
+        } else {
+             if (isFullScreen) {
+                 // In Full Screen, controls follow explicit visibility only (or auto-hide if just shown)
+                 if (areControlsVisible && !isPaused) {
+                      delay(3000) // Short delay in full screen
+                      areControlsVisible = false
+                 }
+             } else {
+                 // Normal Mode
+                 if (!isPaused && areControlsVisible) {
+                    delay(5000) // 5 seconds
+                    areControlsVisible = false
+                }
+             }
         }
     }
 
@@ -359,7 +453,7 @@ fun VideoItem(
                 player = player,
                 isFullyVisible = isSelected,
                 isPaused = isPaused, 
-                resizeMode = resizeMode,
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
                 onPageChange = { newIndex -> currentSubIndex.intValue = newIndex },
                 onVideoTap = {} // No-op, handled by overlay
             )
@@ -507,54 +601,121 @@ fun VideoItem(
                         )
                 )
 
+                // Scrubber (Slider) - Positioned just above the bottom gradient content
+                // We need to poll the player position
+                var currentPos by remember { mutableStateOf(0L) }
+                var duration by remember { mutableStateOf(1L) } // Avoid /0
+                var isDragging by remember { mutableStateOf(false) }
+                
+                LaunchedEffect(player, isDragging) {
+                     while(true) {
+                         if (!isDragging && player.duration > 0) {
+                             currentPos = player.currentPosition
+                             duration = player.duration
+                         }
+                         delay(200) // 5Hz update
+                     }
+                }
+
+                // Bottom Content Container (Slider + Description)
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(16.dp)
-                        .fillMaxWidth(0.8f) 
+                        .fillMaxWidth()
+                        // Ensure bottom padding so it doesn't touch the navigation bar area excessively
+                        // The original Description had padding(16.dp)
                 ) {
-                    // Playlist Indicator
-                    if (metadataResult?.isMultiPart == true) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(bottom = 8.dp)
-                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.List,
-                                contentDescription = "Playlist",
-                                tint = Color.Yellow,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.size(4.dp))
-                            Text(
-                                // Part X of Y (1-based index)
-                                text = "Part ${currentSubIndex.intValue + 1} of ${metadataResult.fileCount}",
-                                color = Color.Yellow,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = item.title ?: "Untitled",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            shadow = Shadow(color = Color.Black, blurRadius = 4f),
-                            color = Color.White
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = item.description?.take(100) ?: "No description",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            shadow = Shadow(color = Color.Black, blurRadius = 4f),
-                            color = Color.White
-                        ),
-                        maxLines = 2
-                    )
+                     // Slider (Now above text)
+                     androidx.compose.material3.Slider(
+                         value = currentPos.toFloat(),
+                         onValueChange = { 
+                             isDragging = true
+                             currentPos = it.toLong()
+                         },
+                         onValueChangeFinished = {
+                             player.seekTo(currentPos)
+                             isDragging = false
+                         },
+                         valueRange = 0f..duration.toFloat(),
+                         colors = androidx.compose.material3.SliderDefaults.colors(
+                             thumbColor = Color.Yellow,
+                             activeTrackColor = Color.Yellow,
+                             inactiveTrackColor = Color.Gray.copy(alpha = 0.5f)
+                         ),
+                         modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 72.dp) // Shortened to avoid side buttons
+                            .height(20.dp) 
+                     )
+                     
+                     // Description & Playlist Info
+                     Column(
+                        modifier = Modifier
+                            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp)
+                            .fillMaxWidth(0.8f) 
+                     ) {
+                         // Playlist Indicator
+                         if (metadataResult?.isMultiPart == true) {
+                             Row(
+                                 verticalAlignment = Alignment.CenterVertically,
+                                 modifier = Modifier
+                                     .padding(bottom = 8.dp)
+                                     .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                     .padding(horizontal = 6.dp, vertical = 2.dp)
+                             ) {
+                                 Icon(
+                                     imageVector = androidx.compose.material.icons.Icons.Default.List,
+                                     contentDescription = "Playlist",
+                                     tint = Color.Yellow,
+                                     modifier = Modifier.size(16.dp)
+                                 )
+                                 Spacer(modifier = Modifier.size(4.dp))
+                                 Text(
+                                     // Part X of Y (1-based index)
+                                     text = "Part ${currentSubIndex.intValue + 1} of ${metadataResult.fileCount}",
+                                     color = Color.Yellow,
+                                     style = MaterialTheme.typography.labelMedium
+                                 )
+                             }
+                         }
+ 
+                         Text(
+                             text = item.title ?: "Untitled",
+                             style = MaterialTheme.typography.titleLarge.copy(
+                                 fontWeight = FontWeight.Bold,
+                                 shadow = Shadow(color = Color.Black, blurRadius = 4f),
+                                 color = Color.White
+                             )
+                         )
+                         Spacer(modifier = Modifier.height(8.dp))
+                         
+                         val descriptionText = item.description ?: "No description"
+                         val isLongDescription = descriptionText.length > 100 || descriptionText.lines().size > 2
+                         
+                         Text(
+                             text = descriptionText,
+                             style = MaterialTheme.typography.bodyMedium.copy(
+                                 shadow = Shadow(color = Color.Black, blurRadius = 4f),
+                                 color = Color.White
+                             ),
+                             maxLines = 2,
+                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                         )
+                         
+                         if (isLongDescription) {
+                             Text(
+                                 text = "Show more",
+                                 color = Color.Yellow,
+                                 style = MaterialTheme.typography.bodyMedium.copy(
+                                     fontWeight = FontWeight.Bold,
+                                     shadow = Shadow(color = Color.Black, blurRadius = 4f)
+                                 ),
+                                 modifier = Modifier
+                                     .padding(top = 4.dp)
+                                     .clickable { onShowDescription() }
+                             )
+                         }
+                     }
                 }
                 
                 // Right Side Actions
@@ -601,33 +762,29 @@ fun VideoItem(
                     Text("Save", color = Color.White, fontSize = 12.sp)
                     
                     Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // Aspect Ratio Toggle
+
+                    // Full Screen Toggle
                     Icon(
-                        imageVector = Icons.Default.AspectRatio,
-                        contentDescription = "Resize",
+                        imageVector = if (isFullScreen) androidx.compose.material.icons.Icons.Default.FullscreenExit else androidx.compose.material.icons.Icons.Default.Fullscreen, 
+                        contentDescription = "Full Screen",
                         tint = Color.White,
                         modifier = Modifier
                             .size(40.dp)
-                            .clickable {
-                                resizeMode = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_ZOOM) {
-                                    AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                } else {
-                                    AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                }
-                            }
+                            .clickable { onToggleFullScreen() }
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_ZOOM) "Fill" else "Fit",
-                        color = Color.White,
-                        fontSize = 12.sp
-                    )
+                    Text(if (isFullScreen) "Exit" else "Full", color = Color.White, fontSize = 12.sp)
 
                     Spacer(modifier = Modifier.height(24.dp))
                     
+
+
+
+                    
+
+
                     Icon(
-                        imageVector = Icons.Default.Info,
+                        imageVector = androidx.compose.material.icons.Icons.Default.Info,
                         contentDescription = "Source",
                         tint = Color.White,
                         modifier = Modifier
@@ -636,6 +793,20 @@ fun VideoItem(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("Web", color = Color.White, fontSize = 12.sp)
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Comments Button
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Filled.Comment, // Ensure this icon exists or use generic
+                        contentDescription = "Comments",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clickable { onShowComments() }
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Reviews", color = Color.White, fontSize = 12.sp)
                 }
             }
         }
@@ -749,7 +920,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
     // 2: Seek (Double Tap)
     // 3: Filter (Top Right)
     // 4: Save (Bottom Right Heart)
-    // 5: Aspect Ratio (Bottom Right)
+    // 5: Full Screen (Bottom Right)
     // 6: Web Browser (Bottom Right)
 
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -761,7 +932,11 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
             // alpha 0.99f is needed for BlendMode.Clear to work on some Android versions
             .graphicsLayer { this.alpha = 0.99f }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                 // Prevent clicks passing through
+                 if (step < 7) {
+                     step++
+                 } else {
+                     onDismiss()
+                 }
             }
     ) {
         // Scrim with Holes
@@ -772,19 +947,20 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
             val filterX = width - with(density) { 30.dp.toPx() }
             val filterY = with(density) { 62.dp.toPx() }
             
-            // Calculated based on VideoItem layout (Bottom -> Top)
-            // Web: 40(pad) + 14(text) + 4 + 20(icon half) = 78
-            // Aspect: 78 + 20 + 24(spacer) + 14 + 4 + 20 = 160
-            // Save: 160 + 20 + 24 + 14 + 4 + 20 = 242
+            // Adjusted X to be closer to edge (Icon center is approx 20dp + 16dp padding = 36dp)
+            // But visual center might "feel" closer if the icon itself is the target
+            // Let's widen the radius and nudge it slightly right to ensure coverage
+            val rightActionX = width - with(density) { 28.dp.toPx() } // Moved closer to edge from 36
             
-            val saveX = width - with(density) { 36.dp.toPx() }
-            val saveY = height - with(density) { 242.dp.toPx() }
+            val saveY = height - with(density) { 332.dp.toPx() } // Shifted up for 4th item
+            val fullY = height - with(density) { 248.dp.toPx() } // Shifted up for 3rd item
+            val webY = height - with(density) { 164.dp.toPx() } // Shifted up for 2nd item
+            val commentY = height - with(density) { 80.dp.toPx() } // Bottom item
 
-            val aspectX = width - with(density) { 36.dp.toPx() }
-            val aspectY = height - with(density) { 160.dp.toPx() }
-
-            val webX = width - with(density) { 36.dp.toPx() }
-            val webY = height - with(density) { 78.dp.toPx() }
+            // Radii
+            val holeRadius = with(density) { 36.dp.toPx() } // Increased from 30
+            val ringRadius = with(density) { 40.dp.toPx() } // Increased from 34
+            val strokeWidth = with(density) { 4.dp.toPx() }
 
             // Draw Dimmed Background
             drawRect(Color.Black.copy(alpha = 0.6f))
@@ -795,56 +971,70 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                     drawCircle(
                         color = Color.Transparent,
                         center = androidx.compose.ui.geometry.Offset(filterX, filterY),
-                        radius = with(density) { 30.dp.toPx() },
+                        radius = holeRadius,
                         blendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     )
                     drawCircle(
                         color = Color.Yellow,
                         center = androidx.compose.ui.geometry.Offset(filterX, filterY),
-                        radius = with(density) { 34.dp.toPx() },
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = with(density) { 4.dp.toPx() })
+                        radius = ringRadius,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
                     )
                 }
                 4 -> { // Save
                     drawCircle(
                         color = Color.Transparent,
-                        center = androidx.compose.ui.geometry.Offset(saveX, saveY),
-                        radius = with(density) { 30.dp.toPx() },
+                        center = androidx.compose.ui.geometry.Offset(rightActionX, saveY),
+                        radius = holeRadius,
                         blendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     )
                     drawCircle(
                         color = Color.Yellow,
-                        center = androidx.compose.ui.geometry.Offset(saveX, saveY),
-                        radius = with(density) { 34.dp.toPx() },
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = with(density) { 4.dp.toPx() })
+                        center = androidx.compose.ui.geometry.Offset(rightActionX, saveY),
+                        radius = ringRadius,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
                     )
                 }
-                5 -> { // Aspect Ratio
+                5 -> { // Full Screen
                     drawCircle(
-                        color = Color.Transparent,
-                        center = androidx.compose.ui.geometry.Offset(aspectX, aspectY),
-                        radius = with(density) { 30.dp.toPx() },
-                        blendMode = androidx.compose.ui.graphics.BlendMode.Clear
+                         color = Color.Transparent,
+                         center = androidx.compose.ui.geometry.Offset(rightActionX, fullY),
+                         radius = holeRadius,
+                         blendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     )
                     drawCircle(
-                        color = Color.Yellow,
-                        center = androidx.compose.ui.geometry.Offset(aspectX, aspectY),
-                        radius = with(density) { 34.dp.toPx() },
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = with(density) { 4.dp.toPx() })
+                         color = Color.Yellow,
+                         center = androidx.compose.ui.geometry.Offset(rightActionX, fullY),
+                         radius = ringRadius,
+                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
                     )
                 }
                 6 -> { // Web
                     drawCircle(
                         color = Color.Transparent,
-                        center = androidx.compose.ui.geometry.Offset(webX, webY),
-                        radius = with(density) { 30.dp.toPx() },
+                        center = androidx.compose.ui.geometry.Offset(rightActionX, webY),
+                        radius = holeRadius,
                         blendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     )
                     drawCircle(
                         color = Color.Yellow,
-                        center = androidx.compose.ui.geometry.Offset(webX, webY),
-                        radius = with(density) { 34.dp.toPx() },
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = with(density) { 4.dp.toPx() })
+                        center = androidx.compose.ui.geometry.Offset(rightActionX, webY),
+                        radius = ringRadius,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
+                    )
+                }
+                7 -> { // Comments
+                    drawCircle(
+                        color = Color.Transparent,
+                        center = androidx.compose.ui.geometry.Offset(rightActionX, commentY),
+                        radius = holeRadius,
+                        blendMode = androidx.compose.ui.graphics.BlendMode.Clear
+                    )
+                    drawCircle(
+                        color = Color.Yellow,
+                        center = androidx.compose.ui.geometry.Offset(rightActionX, commentY),
+                        radius = ringRadius,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
                     )
                 }
             }
@@ -876,6 +1066,19 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                             color = Color.LightGray,
                             style = MaterialTheme.typography.bodyLarge
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row {
+                            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                                Text("Skip", color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            androidx.compose.material3.Button(
+                                onClick = { step++ },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                            ) {
+                                Text("Next", color = Color.Black)
+                            }
+                        }
                     }
                  }
                  1 -> { // Horizontal Swipe
@@ -910,6 +1113,19 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                             color = Color.LightGray,
                             style = MaterialTheme.typography.bodyLarge
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row {
+                            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                                Text("Skip", color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            androidx.compose.material3.Button(
+                                onClick = { step++ },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                            ) {
+                                Text("Next", color = Color.Black)
+                            }
+                        }
                     }
                  }
                  2 -> { // Double Tap
@@ -943,14 +1159,27 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                             color = Color.LightGray,
                             style = MaterialTheme.typography.bodyLarge
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row {
+                            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                                Text("Skip", color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            androidx.compose.material3.Button(
+                                onClick = { step++ },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                            ) {
+                                Text("Next", color = Color.Black)
+                            }
+                        }
                     }
                  }
                  3 -> { // Filter
                      Column(
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 110.dp, end = 24.dp), 
-                        horizontalAlignment = Alignment.End
+                            .align(Alignment.Center)
+                            .padding(24.dp), 
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = "Filter Content",
@@ -963,14 +1192,27 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row {
+                            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                                Text("Skip", color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            androidx.compose.material3.Button(
+                                onClick = { step++ },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                            ) {
+                                Text("Next", color = Color.Black)
+                            }
+                        }
                     }
                  }
                  4 -> { // Save (Heart)
                      Column(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(bottom = 290.dp, end = 24.dp),
-                        horizontalAlignment = Alignment.End
+                            .align(Alignment.Center)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                          Text(
                             text = "Save Favorites",
@@ -983,34 +1225,60 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row {
+                            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                                Text("Skip", color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            androidx.compose.material3.Button(
+                                onClick = { step++ },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                            ) {
+                                Text("Next", color = Color.Black)
+                            }
+                        }
                     }
                  }
-                 5 -> { // Aspect Ratio
+                 5 -> { // Full Screen
                      Column(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(bottom = 210.dp, end = 24.dp),
-                        horizontalAlignment = Alignment.End
+                            .align(Alignment.Center)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                          Text(
-                            text = "Adjust View",
+                            text = "Full Screen",
                             color = Color.Yellow,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
                          Text(
-                            text = "Toggle Fit/Fill Mode",
+                            text = "Hide distractions",
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row {
+                            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                                Text("Skip", color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            androidx.compose.material3.Button(
+                                onClick = { step++ },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                            ) {
+                                Text("Next", color = Color.Black)
+                            }
+                        }
                     }
                  }
                  6 -> { // Web
                      Column(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(bottom = 130.dp, end = 24.dp),
-                        horizontalAlignment = Alignment.End
+                            .align(Alignment.Center)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                          Text(
                             text = "View Source",
@@ -1019,61 +1287,55 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                             fontWeight = FontWeight.Bold
                         )
                          Text(
-                            text = "Open in Web Browser",
+                            text = "Go to Archive.org page",
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row {
+                            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                                Text("Skip", color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            androidx.compose.material3.Button(
+                                onClick = { step++ },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                            ) {
+                                Text("Next", color = Color.Black)
+                            }
+                        }
+                    }
+                 }
+                 7 -> { // Comments
+                     Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(24.dp), 
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                         Text(
+                            text = "Read Reviews",
+                            color = Color.Yellow,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                         Text(
+                            text = "See what others are saying",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                         Spacer(modifier = Modifier.height(16.dp))
+                         androidx.compose.material3.Button(
+                             onClick = onDismiss,
+                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                         ) {
+                             Text("Got it!", color = Color.Black)
+                         }
                     }
                  }
              }
         }
 
-        // Navigation Buttons (Bottom Center)
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 48.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            
-            // Skip Button (Left)
-            if (step < 6) {
-                androidx.compose.material3.TextButton(onClick = onDismiss) {
-                    Text("Skip", color = Color.Gray)
-                }
-            } else {
-                Spacer(modifier = Modifier.width(64.dp)) // Spacer to balance layout
-            }
-
-            // Next/Done Button (Center)
-            androidx.compose.material3.Button(
-                onClick = {
-                    if (step < 6) {
-                        step++
-                    } else {
-                        onDismiss()
-                    }
-                },
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow),
-                modifier = Modifier.width(140.dp)
-            ) {
-                Text(
-                    text = if (step < 6) "Next" else "Got it!",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-            }
-             
-            // Right spacer for initial centered look of "Next" or just balance
-             if (step < 6) {
-                 Spacer(modifier = Modifier.width(64.dp))
-             } else {
-                 Spacer(modifier = Modifier.width(64.dp))
-             }
-        }
         
         // Step Indicators
         Row(

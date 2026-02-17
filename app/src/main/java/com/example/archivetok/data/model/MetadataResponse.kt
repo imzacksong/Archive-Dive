@@ -6,7 +6,8 @@ data class MetadataResponse(
     val files: List<ArchiveFile>,
     val metadata: ArchiveMetadata,
     val server: String,
-    val dir: String
+    val dir: String,
+    val reviews: List<ArchiveReview>?
 )
 
 data class ArchiveMetadata(
@@ -22,4 +23,10 @@ data class ArchiveFile(
     val format: String,
     val size: String?,
     val mtime: String?
+)
+
+data class ArchiveReview(
+    val reviewer: String?,
+    val reviewdate: String?,
+    val reviewbody: String?
 )

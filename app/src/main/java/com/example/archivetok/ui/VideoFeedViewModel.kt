@@ -47,6 +47,9 @@ class VideoFeedViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     
+    private val _selectedTags = MutableStateFlow<Set<String>>(emptySet())
+    val selectedTags: StateFlow<Set<String>> = _selectedTags.asStateFlow()
+    
     private var currentPage = 1
     private var currentTags: Set<String> = emptySet()
     
@@ -75,9 +78,17 @@ class VideoFeedViewModel @Inject constructor(
 
     private fun initializeFeed() {
         currentTags = prefsManager.selectedTags
+        _selectedTags.value = currentTags
         // Randomize start page (1-20) to ensure fresh content on reload
         currentPage = kotlin.random.Random.nextInt(1, 21)
         loadMoreVideos()
+    }
+
+    fun updateTags(tags: Set<String>) {
+        prefsManager.selectedTags = tags
+        currentTags = tags
+        _selectedTags.value = tags
+        resetAndReload()
     }
 
     fun toggleShowBookmarks() {

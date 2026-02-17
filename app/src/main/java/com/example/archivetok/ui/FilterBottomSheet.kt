@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -22,6 +24,8 @@ fun FilterBottomSheet(
     onFilterSelected: (String?) -> Unit,
     currentLanguage: String?,
     onLanguageSelected: (String?) -> Unit,
+    currentTags: Set<String>,
+    onTagsSelected: (Set<String>) -> Unit,
     onDismissRequest: () -> Unit
 ) {
     ModalBottomSheet(
@@ -34,6 +38,7 @@ fun FilterBottomSheet(
                 .fillMaxWidth()
                 .padding(16.dp)
                 .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Text(
                 text = "Time Travel (Decade)",
@@ -122,6 +127,43 @@ fun FilterBottomSheet(
                             onDismissRequest() 
                         },
                         label = { Text(language) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color.Yellow,
+                            selectedLabelColor = Color.Black,
+                            containerColor = Color.DarkGray,
+                            labelColor = Color.White
+                        )
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Content Interests",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                com.example.archivetok.data.model.Tags.availableTags.forEach { tag ->
+                    val isSelected = currentTags.contains(tag)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            val newTags = if (isSelected) {
+                                currentTags - tag
+                            } else {
+                                currentTags + tag
+                            }
+                            onTagsSelected(newTags)
+                        },
+                        label = { Text(tag) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color.Yellow,
                             selectedLabelColor = Color.Black,
