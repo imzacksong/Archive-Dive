@@ -37,6 +37,7 @@ Forget the algorithm updates and trending dances. Archive Dive connects you dire
 
 ## 📱 Get the App
 Archive Dive is available for free. Download the APK and start exploring the archives today.
+Join the Archive Dive subreddit too! https://www.reddit.com/r/ArchiveDive/ 
 
 ---
 *Powered by [archive.org](https://archive.org). Content is hosted by the Internet Archive.*
