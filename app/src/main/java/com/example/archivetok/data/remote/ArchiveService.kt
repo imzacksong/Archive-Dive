@@ -13,7 +13,7 @@ interface ArchiveService {
         @Query("q") query: String,
         @Query("fl[]") fields: List<String> = listOf("identifier", "title", "description", "mediatype", "year", "subject"),
         @Query("sort[]") sort: String = "downloads desc",
-        @Query("rows") rows: Int = 50,
+        @Query("rows") rows: Int = 15,
         @Query("page") page: Int,
         @Query("output") output: String = "json"
     ): SearchResponse

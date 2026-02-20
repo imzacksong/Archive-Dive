@@ -26,6 +26,8 @@ fun FilterBottomSheet(
     onLanguageSelected: (String?) -> Unit,
     currentTags: Set<String>,
     onTagsSelected: (Set<String>) -> Unit,
+    availableTags: List<String>,
+    brandColor: Color,
     onDismissRequest: () -> Unit
 ) {
     ModalBottomSheet(
@@ -72,7 +74,7 @@ fun FilterBottomSheet(
                         },
                         label = { Text(decade) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color.Yellow,
+                            selectedContainerColor = brandColor,
                             selectedLabelColor = Color.Black,
                             containerColor = Color.DarkGray,
                             labelColor = Color.White
@@ -110,25 +112,11 @@ fun FilterBottomSheet(
                         onClick = {
                             val newValue = if (language == "All Languages") null else language
                             onLanguageSelected(newValue)
-                            // Don't dismiss immediately for multi-filter feel, or do? 
-                            // Current behavior is dismiss on decade, so let's dismiss here too for consistency, 
-                            // OR keep open to allow mixing. Let's keep open for mixing? 
-                            // Actually user might expect valid state immediately. 
-                            // Let's NOT dismiss automatically here to allow setting both Decade + Language.
-                            // But wait, the previous implementation dismissed on Decade. 
-                            // Let's change behavior: ONLY dismiss when clicking outside or a "Done" button? 
-                            // For now, let's keep it simple: Select -> Trigger Update -> Remain Open?
-                            // Or Select -> Trigger Update -> Dismiss.
-                            // The Decade implementation dismisses. I should probably stick to that pattern for now 
-                            // OR change the UI to have an "Apply" button.
-                            // Given the "TikTok" flow, immediate feedback is nice. 
-                            // Let's dismiss for now to match consistency, or maybe I should add an Apply button in a future polish.
-                            // Re-reading code: The previous one dismisses. 
                             onDismissRequest() 
                         },
                         label = { Text(language) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color.Yellow,
+                            selectedContainerColor = brandColor,
                             selectedLabelColor = Color.Black,
                             containerColor = Color.DarkGray,
                             labelColor = Color.White
@@ -151,7 +139,7 @@ fun FilterBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                com.example.archivetok.data.model.Tags.availableTags.forEach { tag ->
+                availableTags.forEach { tag ->
                     val isSelected = currentTags.contains(tag)
                     FilterChip(
                         selected = isSelected,
@@ -165,7 +153,7 @@ fun FilterBottomSheet(
                         },
                         label = { Text(tag) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color.Yellow,
+                            selectedContainerColor = brandColor,
                             selectedLabelColor = Color.Black,
                             containerColor = Color.DarkGray,
                             labelColor = Color.White

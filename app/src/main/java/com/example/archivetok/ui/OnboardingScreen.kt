@@ -38,7 +38,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 fun OnboardingScreen(
     onFinish: (Set<String>) -> Unit
 ) {
-    val availableTags = com.example.archivetok.data.model.Tags.availableTags
+    val availableTags = com.example.archivetok.data.model.Tags.videoTags
     val selectedTags = remember { mutableStateListOf<String>() }
 
     Box(

@@ -29,8 +29,14 @@ object NetworkModule {
                     .build()
                 chain.proceed(request)
             }
+            .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .connectionPool(okhttp3.ConnectionPool(0, 5, java.util.concurrent.TimeUnit.MINUTES))
+            .protocols(listOf(okhttp3.Protocol.HTTP_1_1)) // Force HTTP 1.1 to avoid potential HTTP/2 issues with some older servers
             .followRedirects(true)
             .followSslRedirects(true)
+            .retryOnConnectionFailure(true)
             .build()
     }
 

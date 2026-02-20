@@ -16,6 +16,7 @@ class PrefsManager @Inject constructor(
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_TUTORIAL_SHOWN = "tutorial_shown"
         private const val KEY_SELECTED_TAGS = "selected_tags"
+        private const val KEY_SELECTED_AUDIO_TAGS = "selected_audio_tags"
     }
 
     var isOnboardingCompleted: Boolean
@@ -26,7 +27,11 @@ class PrefsManager @Inject constructor(
         get() = prefs.getBoolean(KEY_TUTORIAL_SHOWN, false)
         set(value) = prefs.edit().putBoolean(KEY_TUTORIAL_SHOWN, value).apply()
 
-    var selectedTags: Set<String>
+    var selectedVideoTags: Set<String>
         get() = prefs.getStringSet(KEY_SELECTED_TAGS, emptySet()) ?: emptySet()
         set(value) = prefs.edit().putStringSet(KEY_SELECTED_TAGS, value).apply()
+
+    var selectedAudioTags: Set<String>
+        get() = prefs.getStringSet(KEY_SELECTED_AUDIO_TAGS, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_SELECTED_AUDIO_TAGS, value).apply()
 }

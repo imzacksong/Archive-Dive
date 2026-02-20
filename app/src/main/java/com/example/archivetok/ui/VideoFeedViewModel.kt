@@ -24,6 +24,15 @@ class VideoFeedViewModel @Inject constructor(
     private val preloader: com.example.archivetok.data.player.VideoPreloader
 ) : ViewModel() {
 
+    private val _isAudioMode = MutableStateFlow(false)
+    val isAudioMode: StateFlow<Boolean> = _isAudioMode.asStateFlow()
+
+    // Feed State Retention
+    private var savedVideoList: List<ArchiveItem> = emptyList()
+    private var savedAudioList: List<ArchiveItem> = emptyList()
+    private var currentVideoPage = 1
+    private var currentAudioPage = 1
+
     private val _videoList = MutableStateFlow<List<ArchiveItem>>(emptyList())
     val videoList: StateFlow<List<ArchiveItem>> = _videoList.asStateFlow()
 
@@ -36,6 +45,13 @@ class VideoFeedViewModel @Inject constructor(
 
     private val _videoUrls = MutableStateFlow<Map<String, com.example.archivetok.data.model.MetadataResult>>(emptyMap())
     val videoUrls: StateFlow<Map<String, com.example.archivetok.data.model.MetadataResult>> = _videoUrls.asStateFlow()
+
+    // Museum / Exhibit State
+    private val _exhibits = MutableStateFlow<List<com.example.archivetok.data.local.ExhibitEntity>>(emptyList())
+    val exhibits: StateFlow<List<com.example.archivetok.data.local.ExhibitEntity>> = _exhibits.asStateFlow()
+
+    private val _activeExhibitId = MutableStateFlow<Long?>(null)
+    val activeExhibitId: StateFlow<Long?> = _activeExhibitId.asStateFlow()
 
     // Filter State
     private val _filterDecade = MutableStateFlow<String?>(null)
@@ -50,6 +66,12 @@ class VideoFeedViewModel @Inject constructor(
     private val _selectedTags = MutableStateFlow<Set<String>>(emptySet())
     val selectedTags: StateFlow<Set<String>> = _selectedTags.asStateFlow()
     
+    // Sort Strategy
+    private var currentSortOrder: String = "downloads desc"
+
+    private val _availableTags = MutableStateFlow<List<String>>(com.example.archivetok.data.model.Tags.videoTags)
+    val availableTags: StateFlow<List<String>> = _availableTags.asStateFlow()
+    
     private var currentPage = 1
     private var currentTags: Set<String> = emptySet()
     
@@ -62,30 +84,121 @@ class VideoFeedViewModel @Inject constructor(
             repository.bookmarks.collect { bookmarkedItems ->
                 currentBookmarks = bookmarkedItems
                 bookmarkedIds = bookmarkedItems.map { it.identifier }.toSet()
-                
-                if (_showBookmarks.value) {
-                    _videoList.value = bookmarkedItems.map { 
-                        ArchiveItem(it.identifier, it.title, it.description, it.mediatype, null, null) 
-                    }
-                }
             }
         }
-
+        
+        // Collect Exhibits (Dynamic based on Mode)
+        // We trigger this manually or observe a transformation?
+        // Simpler: Launch a job that we can cancel/restart, or use a flatMapLatest equivalent if we had it.
+        // Let's us observe _isAudioMode and switch the repository flow.
+        viewModelScope.launch {
+            _isAudioMode.collect { isAudio ->
+                // Cancel previous collection implicitly by new collection? No, need switchMap.
+                // Or just separate implementation. 
+                // Let's use a simpler approach: Re-launch collection on mode change.
+            }
+        }
+        
+        // Initial Exhibits Load
+        loadExhibits()
         
         // Initial Feed Load
         initializeFeed()
     }
 
-    private fun initializeFeed() {
-        currentTags = prefsManager.selectedTags
-        _selectedTags.value = currentTags
-        // Randomize start page (1-20) to ensure fresh content on reload
-        currentPage = kotlin.random.Random.nextInt(1, 21)
-        loadMoreVideos()
+    private var exhibitJob: kotlinx.coroutines.Job? = null
+    
+    private fun loadExhibits() {
+        exhibitJob?.cancel()
+        exhibitJob = viewModelScope.launch {
+            val mode = if (_isAudioMode.value) "audio" else "video"
+            repository.getExhibits(mode).collect { 
+                _exhibits.value = it 
+            }
+        }
     }
 
-    fun updateTags(tags: Set<String>) {
-        prefsManager.selectedTags = tags
+    private fun initializeFeed() {
+        // Load tags based on mode (Default: Video)
+        val isAudio = _isAudioMode.value
+        currentTags = if (isAudio) prefsManager.selectedAudioTags else prefsManager.selectedVideoTags
+        _selectedTags.value = currentTags
+        
+        // Initialize pages with random start
+        currentVideoPage = kotlin.random.Random.nextInt(1, 21)
+        currentAudioPage = kotlin.random.Random.nextInt(1, 21)
+        
+        currentPage = if (isAudio) currentAudioPage else currentVideoPage
+        
+        // RANDOMIZE SORT ORDER
+        // Variety is the spice of life, but speed is key.
+        val sortOptions = listOf(
+            "downloads desc",    // Popular (Fast)
+            "publicdate desc",   // Newest (Fast)
+            "addeddate desc"     // Just Added (Fast)
+        )
+        currentSortOrder = sortOptions.random() // Pick one for this session/feed
+        android.util.Log.d("VideoFeedVM", "Feed Initialized with Sort Order: $currentSortOrder")
+        
+        loadMoreVideos()
+    }
+    
+    fun toggleAudioMode() {
+        val newModeIsAudio = !_isAudioMode.value
+        
+        // 1. Save current state
+        if (_isAudioMode.value) {
+            // Was Audio -> Switch to Video
+            savedAudioList = _videoList.value
+            currentAudioPage = currentPage
+        } else {
+            // Was Video -> Switch to Audio
+            savedVideoList = _videoList.value
+            currentVideoPage = currentPage
+        }
+        
+        // 2. Switch Mode
+        _isAudioMode.value = newModeIsAudio
+        
+        // Update Tags for new mode
+        if (newModeIsAudio) {
+            currentTags = prefsManager.selectedAudioTags
+        } else {
+            currentTags = prefsManager.selectedVideoTags
+        }
+        _selectedTags.value = currentTags
+        
+        // 3. Restore State
+        if (newModeIsAudio) {
+            _videoList.value = savedAudioList
+            currentPage = currentAudioPage
+            _availableTags.value = com.example.archivetok.data.model.Tags.audioTags
+        } else {
+            _videoList.value = savedVideoList
+            currentPage = currentVideoPage
+            _availableTags.value = com.example.archivetok.data.model.Tags.videoTags
+        }
+        
+        // 4. Reload Exhibits for new mode
+        loadExhibits()
+        
+        // 5. Load content if empty
+        if (_videoList.value.isEmpty()) {
+            loadMoreVideos()
+        }
+        
+        // 6. Pause any active players (handled by UI reacting to list change/player pool, but good to ensure released)
+        playerPool.releaseAll() 
+    }
+
+     fun updateTags(tags: Set<String>) {
+        // Save to appropriate preference
+        if (_isAudioMode.value) {
+            prefsManager.selectedAudioTags = tags
+        } else {
+            prefsManager.selectedVideoTags = tags
+        }
+        
         currentTags = tags
         _selectedTags.value = tags
         resetAndReload()
@@ -95,15 +208,70 @@ class VideoFeedViewModel @Inject constructor(
         _showBookmarks.value = !_showBookmarks.value
         
         if (_showBookmarks.value) {
-            // Switch TO Bookmarks: Load from cache
-            _videoList.value = currentBookmarks.map { 
-                ArchiveItem(it.identifier, it.title, it.description, it.mediatype, null, null) 
-            }
-            _errorMessage.value = null // Clear any explore errors
+            // Enter Museum Mode (Root)
+            _activeExhibitId.value = null // No specific exhibit selected yet
+            _videoList.value = emptyList() // Clear video feed while browsing exhibits
+            _errorMessage.value = null
         } else {
             // Switch TO Explore: Reload feed
-            _videoList.value = emptyList() 
-            initializeFeed() 
+            _activeExhibitId.value = null
+            // Restore current mode's feed
+            if (_isAudioMode.value) {
+                _videoList.value = savedAudioList // Or re-init? simplified: just re-load if empty
+                currentPage = currentAudioPage
+            } else {
+                _videoList.value = savedVideoList
+                currentPage = currentVideoPage
+            }
+            
+            if (_videoList.value.isEmpty()) {
+                 initializeFeed() 
+            }
+        }
+    }
+    
+    fun openExhibit(exhibit: com.example.archivetok.data.local.ExhibitEntity) {
+        _activeExhibitId.value = exhibit.id
+        loadExhibitVideos(exhibit.id)
+    }
+    
+    fun closeExhibit() {
+        _activeExhibitId.value = null
+        _videoList.value = emptyList() // Back to Museum root
+    }
+
+    private fun loadExhibitVideos(exhibitId: Long) {
+        viewModelScope.launch {
+            repository.getVideosInExhibit(exhibitId).collect { videos ->
+                 _videoList.value = videos.map { 
+                    ArchiveItem(it.identifier, it.title, it.description, it.mediatype, null, null) 
+                }
+            }
+        }
+    }
+
+    fun createExhibit(name: String) {
+        viewModelScope.launch {
+            val mediaType = if (_isAudioMode.value) "audio" else "video"
+            repository.createExhibit(name = name, mediaType = mediaType)
+        }
+    }
+    
+    fun updateExhibit(id: Long, name: String, theme: Int?, useCoverImage: Boolean) {
+        viewModelScope.launch {
+            repository.updateExhibit(id, name, theme, useCoverImage)
+        }
+    }
+    
+    fun updateAllExhibitThemes(theme: Int?) {
+        viewModelScope.launch {
+            repository.updateAllExhibitThemes(theme)
+        }
+    }
+
+    fun addVideoToExhibit(exhibitId: Long, item: ArchiveItem) {
+        viewModelScope.launch {
+            repository.addVideoToExhibit(exhibitId, item)
         }
     }
     fun setFilterDecade(decade: String?) {
@@ -118,6 +286,8 @@ class VideoFeedViewModel @Inject constructor(
 
     private fun resetAndReload() {
         _videoList.value = emptyList()
+        // Reset ONLY current mode's page
+        if (_isAudioMode.value) currentAudioPage = 1 else currentVideoPage = 1
         currentPage = 1
         loadMoreVideos()
     }
@@ -138,6 +308,7 @@ class VideoFeedViewModel @Inject constructor(
             "2000s" -> "date:[2000-01-01 TO 2009-12-31]"
             "2010s" -> "date:[2010-01-01 TO 2019-12-31]"
             "2020s" -> "date:[2020-01-01 TO 2029-12-31]"
+            "Future" -> "date:[2030-01-01 TO 2999-12-31]" // Why not
             else -> null
         }
     }
@@ -166,28 +337,34 @@ class VideoFeedViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null // Clear previous errors
-            android.util.Log.d("VideoFeedVM", "Loading videos... Page: $currentPage")
+            val mode = if (_isAudioMode.value) "audio" else "video"
+            android.util.Log.d("VideoFeedVM", "Loading $mode... Page: $currentPage")
             
             try {
                 // Get query from filter
                 val decadeQuery = getDecadeQuery(_filterDecade.value)
                 val languageQuery = getLanguageQuery(_filterLanguage.value)
-                val newVideos = repository.getVideos(currentPage, currentTags, decadeQuery, languageQuery)
                 
-                android.util.Log.d("VideoFeedVM", "Raw videos fetched: ${newVideos.size}")
+                val newVideos = repository.getVideos(
+                    page = currentPage, 
+                    tags = currentTags, 
+                    decadeQuery = decadeQuery, 
+                    languageQuery = languageQuery,
+                    mediaType = mode,
+                    sortOrder = currentSortOrder
+                )
                 
-                // FILTER: Exclude videos that are already bookmarked
+                android.util.Log.d("VideoFeedVM", "Raw items fetched: ${newVideos.size}")
+                
+                // FILTER: Exclude items that are already bookmarked
                 val unbookmarked = newVideos.filter { !bookmarkedIds.contains(it.identifier) }
                 
-                // VARIETY SORT: Round-Robin based on Tags
-                // 1. Bucket items by their primary matching tag
+                // VARIETY SORT (Keep implementation, same for audio)
                 val buckets = mutableMapOf<String, MutableList<ArchiveItem>>()
                 val otherBucket = mutableListOf<ArchiveItem>()
                 
                 unbookmarked.forEach { item ->
-                    // Find the first tag in item.subject that matches a user-selected tag
                     val matchingTag = item.subject?.firstOrNull { currentTags.contains(it) }
-                    
                     if (matchingTag != null) {
                         buckets.getOrPut(matchingTag) { mutableListOf() }.add(item)
                     } else {
@@ -195,11 +372,9 @@ class VideoFeedViewModel @Inject constructor(
                     }
                 }
                 
-                // 2. Shuffle each bucket internally
                 buckets.values.forEach { it.shuffle() }
                 otherBucket.shuffle()
                 
-                // 3. Round-Robin Merge
                 val sortedList = mutableListOf<ArchiveItem>()
                 var activeBuckets = buckets.values.toMutableList()
                 if (otherBucket.isNotEmpty()) activeBuckets.add(otherBucket)
@@ -218,23 +393,19 @@ class VideoFeedViewModel @Inject constructor(
                 
                 val filteredVideos = sortedList
                 
-                android.util.Log.d("VideoFeedVM", "After variety sort: ${filteredVideos.size} (Bookmarked: ${bookmarkedIds.size})")
-                
                 val currentList = _videoList.value
                 _videoList.value = currentList + filteredVideos
                 
-                // Aggressive Prefetching for new items
+                // Prefetching
                 filteredVideos.take(5).forEach { item ->
                     launch { resolveUrlFor(item) }
                 }
 
                 if (newVideos.isEmpty()) {
-                    android.util.Log.d("VideoFeedVM", "No videos returned from API.")
                     if (currentList.isEmpty()) {
-                         _errorMessage.value = "No videos found (API returned 0). Try changing filters."
+                         _errorMessage.value = "No items found (API returned 0). Try changing filters."
                     }
                 } else if (filteredVideos.isEmpty() && newVideos.isNotEmpty()) {
-                    android.util.Log.d("VideoFeedVM", "All videos filtered. Loading next page...")
                     currentPage++
                     _isLoading.value = false 
                     loadMoreVideos()
@@ -243,7 +414,7 @@ class VideoFeedViewModel @Inject constructor(
                     currentPage++
                 }
             } catch (e: Exception) {
-                android.util.Log.e("VideoFeedVM", "Error loading videos", e)
+                android.util.Log.e("VideoFeedVM", "Error loading items", e)
                 e.printStackTrace()
                 _errorMessage.value = "Error: ${e.localizedMessage ?: e.javaClass.simpleName}"
             } finally {
@@ -363,10 +534,11 @@ class VideoFeedViewModel @Inject constructor(
     }
     
     fun completeOnboarding(tags: Set<String>) {
-        prefsManager.selectedTags = tags
+        // Onboarding is primarily for VIDEO mode tags initially
+        prefsManager.selectedVideoTags = tags
         prefsManager.isOnboardingCompleted = true
         _videoList.value = emptyList()
-        initializeFeed()
+        initializeFeed() // This will pick up the tags
     }
     
     fun isBookmarked(identifier: String): kotlinx.coroutines.flow.Flow<Boolean> {

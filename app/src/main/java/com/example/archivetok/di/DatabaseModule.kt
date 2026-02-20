@@ -22,11 +22,19 @@ object DatabaseModule {
             context,
             ArchiveDatabase::class.java,
             "archive_db"
-        ).build()
+        )
+        .addMigrations(ArchiveDatabase.MIGRATION_4_5)
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     @Provides
     fun provideBookmarkDao(database: ArchiveDatabase): BookmarkDao {
         return database.bookmarkDao()
+    }
+
+    @Provides
+    fun provideExhibitDao(database: ArchiveDatabase): com.example.archivetok.data.local.ExhibitDao {
+        return database.exhibitDao()
     }
 }

@@ -1,6 +1,7 @@
 package com.example.archivetok.ui
 
 import android.content.Intent
+import androidx.compose.runtime.DisposableEffect
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -61,6 +62,17 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.ui.graphics.graphicsLayer
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Tv
+import com.example.archivetok.ui.theme.NeonGreen
+import com.example.archivetok.ui.theme.ArchiveYellow
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import android.app.Activity
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.view.WindowCompat
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.animateColor
@@ -95,7 +107,20 @@ fun VideoFeedScreen(
     val showBookmarks by viewModel.showBookmarks.collectAsState()
     val videoUrls by viewModel.videoUrls.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val isAudioMode by viewModel.isAudioMode.collectAsState()
     val context = LocalContext.current
+
+    val brandColor = if(isAudioMode) NeonGreen else ArchiveYellow
+
+    // Dynamic Status Bar Color
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = brandColor.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true // Always dark text for these bright colors
+        }
+    }
 
     val pagerState = rememberPagerState(pageCount = { videoList.size })
     
@@ -107,6 +132,23 @@ fun VideoFeedScreen(
     var showFilterSheet by remember { mutableStateOf(false) }
     val currentFilter by viewModel.filterDecade.collectAsState()
     val currentLanguage by viewModel.filterLanguage.collectAsState()
+
+    // MUSEUM STATE
+    val exhibits by viewModel.exhibits.collectAsState()
+    val activeExhibitId by viewModel.activeExhibitId.collectAsState()
+    var showAddToExhibitSheet by remember { mutableStateOf(false) }
+    var videoToAdd by remember { mutableStateOf<ArchiveItem?>(null) }
+    var showCreateExhibitDialog by remember { mutableStateOf(false) }
+    
+    // BACK NAVIGATION
+    androidx.activity.compose.BackHandler(enabled = showBookmarks) {
+        if (activeExhibitId != null) {
+            viewModel.closeExhibit()
+        } else {
+            viewModel.toggleShowBookmarks()
+        }
+    }
+
     
 
     
@@ -139,8 +181,24 @@ fun VideoFeedScreen(
                     viewModel.loadMoreVideos()
                 }
             }
+            
+            // 1. MUSEUM SCREEN (Root)
+            if (showBookmarks && activeExhibitId == null) {
+                 MuseumScreen(
+                     exhibits = exhibits,
+                     onExhibitSelected = { viewModel.openExhibit(it) },
+                     onCreateExhibit = { showCreateExhibitDialog = true },
+                     onUpdateExhibit = { id, name, theme, useCover -> viewModel.updateExhibit(id, name, theme, useCover) },
+                     onUpdateAllThemes = { theme -> viewModel.updateAllExhibitThemes(theme) },
+                     isAudioMode = isAudioMode,
+                     brandColor = brandColor,
+                     modifier = Modifier.padding(top = 80.dp) 
+                 )
+            }
 
-        if (videoList.isEmpty() && !isLoading) {
+            // 2. VIDEO FEED (Explore OR Inside Exhibit)
+            if (!showBookmarks || activeExhibitId != null) {
+                if (videoList.isEmpty() && !isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
                     
@@ -157,7 +215,7 @@ fun VideoFeedScreen(
                                 android.util.Log.d("VideoFeedScreen", "Retry clicked")
                                 viewModel.loadMoreVideos() 
                             },
-                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = brandColor)
                         ) {
                             Text("Retry", color = Color.Black)
                         }
@@ -180,8 +238,13 @@ fun VideoFeedScreen(
                      isSelected = pagerState.currentPage == page,
                      isTutorialActive = showTutorial,
                      isFullScreen = isFullScreen,
+                     isAudioMode = isAudioMode,
+                     brandColor = brandColor,
                      onToggleFullScreen = { isFullScreen = !isFullScreen },
-                     onBookmark = { viewModel.toggleBookmark(item) },
+                     onBookmark = { 
+                         videoToAdd = item
+                         showAddToExhibitSheet = true 
+                     },
                      onOpenSource = {
                           val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://archive.org/details/${item.identifier}"))
 
@@ -257,11 +320,14 @@ fun VideoFeedScreen(
                             modifier = Modifier.padding(8.dp)
                         )
                         Text(
-                            text = "Saved",
+                            text = "Museum",
                             color = if (showBookmarks) Color.White else Color.Gray,
                             fontWeight = if (showBookmarks) FontWeight.Bold else FontWeight.Normal,
                             modifier = Modifier
-                                .clickable { if (!showBookmarks) viewModel.toggleShowBookmarks() }
+                                .clickable { 
+                                     if (!showBookmarks) viewModel.toggleShowBookmarks() 
+                                     else if (activeExhibitId != null) viewModel.closeExhibit() // Tap Museum while in exhibit -> Back to root
+                                }
                                 .padding(8.dp)
                         )
                     }
@@ -276,19 +342,112 @@ fun VideoFeedScreen(
                     Icon(
                         imageVector = androidx.compose.material.icons.Icons.Default.FilterList,
                         contentDescription = "Filter",
-                        tint = if (currentFilter != null || currentLanguage != null) Color.Yellow else Color.White,
+                        tint = if (currentFilter != null || currentLanguage != null) brandColor else Color.White,
                         modifier = Modifier
                             .size(28.dp)
                             .clickable { showFilterSheet = true }
                     )
+                }
+
+                // Mode Toggle Icon (Top Left)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(top = 48.dp, start = 16.dp)
+                ) {
+                    androidx.compose.material3.IconButton(
+                         onClick = { viewModel.toggleAudioMode() }
+                    ) {
+                        Icon(
+                            imageVector = if (isAudioMode) androidx.compose.material.icons.Icons.Default.Tv else androidx.compose.material.icons.Icons.Default.Headphones,
+                            contentDescription = if (isAudioMode) "Switch to Video" else "Switch to Audio",
+                            tint = if (isAudioMode) NeonGreen else Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
             }
         }
 
 
 
+        }
+        
+        // MUSEUM CREATION DIALOG (Quick Hack: Use AddToExhibitSheet in "Create Mode" or just a separate small dialog? 
+        // Actually MuseumScreen has a visual placeholder. Let's just implement the AddToExhibitSheet.
+        
+        if (showAddToExhibitSheet) {
+            AddToExhibitSheet(
+                exhibits = exhibits,
+                onAddToExhibit = { exhibit ->
+                    videoToAdd?.let { item ->
+                        viewModel.addVideoToExhibit(exhibit.id, item)
+                    }
+                    showAddToExhibitSheet = false
+                    videoToAdd = null
+                },
+                onCreateExhibit = { name ->
+                    viewModel.createExhibit(name)
+                },
+                brandColor = brandColor,
+                onDismissRequest = { 
+                    showAddToExhibitSheet = false 
+                    videoToAdd = null
+                }
+            )
+        }
+        
+        // Explicit Exhibit Creation Dialog for Museum Screen FAB
+        // We'll reuse AddToExhibitSheet logic or just force it open in a "Create Only" mode?
+        // AddToExhibitSheet is designed for ADDING a video.
+        // Let's just add a simple state for the FAB in MuseumScreen.
+        
+        // Create Exhibit Dialog (from Museum Screen FAB)
+        if (showCreateExhibitDialog) {
+            var newExhibitName by remember { mutableStateOf("") }
+            
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showCreateExhibitDialog = false },
+                title = { Text("New Exhibit") },
+                text = {
+                    androidx.compose.material3.TextField(
+                        value = newExhibitName,
+                        onValueChange = { newExhibitName = it },
+                        placeholder = { Text("Exhibit Name") },
+                        singleLine = true
+                    )
+                },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            if (newExhibitName.isNotBlank()) {
+                                viewModel.createExhibit(newExhibitName)
+                                showCreateExhibitDialog = false
+                                newExhibitName = ""
+                            }
+                        }
+                    ) {
+                        Text("Create")
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = { showCreateExhibitDialog = false }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+        
+        // To properly hook up MuseumScreen FAB:
+
+        
+
+        
         if (showFilterSheet) {
             val currentTags by viewModel.selectedTags.collectAsState()
+            val availableTags by viewModel.availableTags.collectAsState()
             
             FilterBottomSheet(
                 currentFilter = currentFilter,
@@ -297,6 +456,8 @@ fun VideoFeedScreen(
                 onLanguageSelected = { viewModel.setFilterLanguage(it) },
                 currentTags = currentTags,
                 onTagsSelected = { viewModel.updateTags(it) },
+                availableTags = availableTags,
+                brandColor = brandColor,
                 onDismissRequest = { showFilterSheet = false }
             )
         }
@@ -319,6 +480,7 @@ fun VideoFeedScreen(
         // TUTORIAL OVERLAY
         if (showTutorial && !showSplash) {
             TutorialOverlay(
+                brandColor = brandColor,
                 onDismiss = {
                     showTutorial = false
                     viewModel.markTutorialShown()
@@ -339,6 +501,8 @@ fun VideoItem(
     isSelected: Boolean,
     isTutorialActive: Boolean = false, // Added param
     isFullScreen: Boolean,
+    isAudioMode: Boolean,
+    brandColor: Color,
     onToggleFullScreen: () -> Unit,
     onBookmark: () -> Unit,
     onOpenSource: () -> Unit,
@@ -455,8 +619,56 @@ fun VideoItem(
                 isPaused = isPaused, 
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
                 onPageChange = { newIndex -> currentSubIndex.intValue = newIndex },
-                onVideoTap = {} // No-op, handled by overlay
+                onVideoTap = {}, // No-op, handled by overlay
+                brandColor = brandColor
             )
+            
+            // Audio Mode Art Overlay
+            if (isAudioMode) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                ) {
+                    // Background blurred or dimmed
+                    AsyncImage(
+                        model = "https://archive.org/services/img/${item.identifier}",
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer { alpha = 0.3f },
+                        contentScale = ContentScale.Crop
+                    )
+                    
+                    // Center Art
+                    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "Pulse")
+                    val scale by infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.05f,
+                        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                            animation = androidx.compose.animation.core.tween(1000, easing = androidx.compose.animation.core.LinearEasing),
+                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                        ),
+                        label = "PulseScale"
+                    )
+
+                    AsyncImage(
+                        model = "https://archive.org/services/img/${item.identifier}",
+                        contentDescription = "Album Art",
+                        modifier = Modifier
+                            .size(250.dp)
+                            .align(Alignment.Center)
+                            .graphicsLayer {
+                                scaleX = if (isSelected && !isPaused) scale else 1f
+                                scaleY = if (isSelected && !isPaused) scale else 1f
+                                shadowElevation = 20f
+                                shape = RoundedCornerShape(12.dp)
+                                clip = true
+                            },
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
         }
 
         // 2. Gesture Surface (Invisible, Top Level)
@@ -638,8 +850,8 @@ fun VideoItem(
                          },
                          valueRange = 0f..duration.toFloat(),
                          colors = androidx.compose.material3.SliderDefaults.colors(
-                             thumbColor = Color.Yellow,
-                             activeTrackColor = Color.Yellow,
+                             thumbColor = brandColor,
+                             activeTrackColor = brandColor,
                              inactiveTrackColor = Color.Gray.copy(alpha = 0.5f)
                          ),
                          modifier = Modifier
@@ -666,14 +878,14 @@ fun VideoItem(
                                  Icon(
                                      imageVector = androidx.compose.material.icons.Icons.Default.List,
                                      contentDescription = "Playlist",
-                                     tint = Color.Yellow,
+                                     tint = brandColor,
                                      modifier = Modifier.size(16.dp)
                                  )
                                  Spacer(modifier = Modifier.size(4.dp))
                                  Text(
                                      // Part X of Y (1-based index)
                                      text = "Part ${currentSubIndex.intValue + 1} of ${metadataResult.fileCount}",
-                                     color = Color.Yellow,
+                                     color = brandColor,
                                      style = MaterialTheme.typography.labelMedium
                                  )
                              }
@@ -705,7 +917,7 @@ fun VideoItem(
                          if (isLongDescription) {
                              Text(
                                  text = "Show more",
-                                 color = Color.Yellow,
+                                 color = brandColor,
                                  style = MaterialTheme.typography.bodyMedium.copy(
                                      fontWeight = FontWeight.Bold,
                                      shadow = Shadow(color = Color.Black, blurRadius = 4f)
@@ -731,7 +943,7 @@ fun VideoItem(
                     // Animation State
                     val transition = androidx.compose.animation.core.updateTransition(targetState = isBookmarked, label = "LikeTransition")
                     val tint by transition.animateColor(label = "Tint") { state ->
-                        if (state) Color.Yellow else Color.White
+                        if (state) brandColor else Color.White
                     }
                     val scale by transition.animateFloat(
                         label = "Scale",
@@ -820,9 +1032,11 @@ fun VideoPlayerContainer(
     isPaused: Boolean, // Received from parent
     resizeMode: Int,
     onPageChange: (Int) -> Unit,
-    onVideoTap: () -> Unit // Callback to parent
+    onVideoTap: () -> Unit, // Callback to parent
+    brandColor: Color = Color.Yellow
 ) {
     var showPauseIcon by remember { mutableStateOf(false) }
+    var isBuffering by remember { mutableStateOf(true) } // Start with true/loading assumption
     
     // NOTE: Player creation/release is now handled by VideoItem (Parent)
     
@@ -833,6 +1047,27 @@ fun VideoPlayerContainer(
             showPauseIcon = true
             delay(1000)
             showPauseIcon = false
+        }
+    }
+
+    // Player State Listener for Buffering
+    DisposableEffect(player) {
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == androidx.media3.common.Player.STATE_BUFFERING) {
+                    isBuffering = true
+                } else if (playbackState == androidx.media3.common.Player.STATE_READY) {
+                    isBuffering = false
+                }
+            }
+        }
+        player.addListener(listener)
+        // Set initial state
+        if (player.playbackState == androidx.media3.common.Player.STATE_READY) {
+            isBuffering = false
+        }
+        onDispose {
+            player.removeListener(listener)
         }
     }
     
@@ -858,10 +1093,34 @@ fun VideoPlayerContainer(
             onVideoTap = onVideoTap,
             modifier = Modifier.fillMaxSize()
         )
+        
+        // BUFFERING / LOADING OVERLAY
+        if (isBuffering && isFullyVisible) {
+             Box(
+                 modifier = Modifier
+                     .fillMaxSize()
+                     .background(Color.Black), // Fully opaque black background to hide "dead air"
+                 contentAlignment = Alignment.Center
+             ) {
+                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                     CircularProgressIndicator(
+                         color = brandColor,
+                         modifier = Modifier.size(48.dp)
+                     )
+                     Spacer(modifier = Modifier.height(16.dp))
+                     Text(
+                         text = "Diving into the Archive...",
+                         style = MaterialTheme.typography.bodyLarge,
+                         color = Color.White,
+                         fontWeight = FontWeight.Bold
+                     )
+                 }
+             }
+        }
 
          // Pause/Play Icon Overlay
         AnimatedVisibility(
-            visible = showPauseIcon,
+            visible = showPauseIcon && !isBuffering, // Don't show play/pause icon over loading screen
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.Center)
@@ -913,7 +1172,7 @@ fun SplashScreen() {
 
 
 @Composable
-fun TutorialOverlay(onDismiss: () -> Unit) {
+fun TutorialOverlay(brandColor: Color = Color.Yellow, onDismiss: () -> Unit) {
     var step by remember { mutableStateOf(0) }
     // 0: Browse (Vertical Swipe)
     // 1: Navigation (Horizontal Swipe)
@@ -975,7 +1234,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                         blendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     )
                     drawCircle(
-                        color = Color.Yellow,
+                        color = brandColor,
                         center = androidx.compose.ui.geometry.Offset(filterX, filterY),
                         radius = ringRadius,
                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
@@ -989,7 +1248,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                         blendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     )
                     drawCircle(
-                        color = Color.Yellow,
+                        color = brandColor,
                         center = androidx.compose.ui.geometry.Offset(rightActionX, saveY),
                         radius = ringRadius,
                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
@@ -1003,7 +1262,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                          blendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     )
                     drawCircle(
-                         color = Color.Yellow,
+                         color = brandColor,
                          center = androidx.compose.ui.geometry.Offset(rightActionX, fullY),
                          radius = ringRadius,
                          style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
@@ -1017,7 +1276,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                         blendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     )
                     drawCircle(
-                        color = Color.Yellow,
+                        color = brandColor,
                         center = androidx.compose.ui.geometry.Offset(rightActionX, webY),
                         radius = ringRadius,
                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
@@ -1031,7 +1290,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                         blendMode = androidx.compose.ui.graphics.BlendMode.Clear
                     )
                     drawCircle(
-                        color = Color.Yellow,
+                        color = brandColor,
                         center = androidx.compose.ui.geometry.Offset(rightActionX, commentY),
                         radius = ringRadius,
                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
@@ -1183,7 +1442,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                     ) {
                         Text(
                             text = "Filter Content",
-                            color = Color.Yellow,
+                            color = brandColor,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -1216,7 +1475,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                     ) {
                          Text(
                             text = "Save Favorites",
-                            color = Color.Yellow,
+                            color = brandColor,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -1249,7 +1508,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                     ) {
                          Text(
                             text = "Full Screen",
-                            color = Color.Yellow,
+                            color = brandColor,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -1282,7 +1541,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                     ) {
                          Text(
                             text = "View Source",
-                            color = Color.Yellow,
+                            color = brandColor,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -1315,7 +1574,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                     ) {
                          Text(
                             text = "Read Reviews",
-                            color = Color.Yellow,
+                            color = brandColor,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -1327,7 +1586,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                          Spacer(modifier = Modifier.height(16.dp))
                          androidx.compose.material3.Button(
                              onClick = onDismiss,
-                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Yellow)
+                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = brandColor)
                          ) {
                              Text("Got it!", color = Color.Black)
                          }
@@ -1349,7 +1608,7 @@ fun TutorialOverlay(onDismiss: () -> Unit) {
                     modifier = Modifier
                         .size(8.dp)
                         .clip(androidx.compose.foundation.shape.CircleShape)
-                        .background(if (index == step) Color.Yellow else Color.Gray)
+                        .background(if (index == step) brandColor else Color.Gray)
                 )
             }
         }
