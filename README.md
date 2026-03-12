@@ -42,72 +42,78 @@ UPDATE 1.8
 
 Release Notes:
 
-startup splash screen "play" logo color fixed.
-added a new share feature. on videos you can select the frame image you want to be included in the share link. on music it adds whatever album art was included.
-fixed museum text alignment.
-added "back to explore" button to the museum menu.
-fixed the issue with nsfw filter not fully working.
-fixed a bug that i found where if you were in your video museum, switched to music explore & tried to add something to your music museum it would start playing random things from video exhibits.
-fixed onboarding tutorial blur and alignment.
-other minor bug/playback issues
+-  startup splash screen "play" logo color fixed.
+-  added a new share feature. on videos you can select the frame image you want to be included in the share link. on music it adds whatever album art was included.
+-  fixed museum text alignment.
+-  added "back to explore" button to the museum menu.
+-  fixed the issue with nsfw filter not fully working.
+-  fixed a bug that i found where if you were in your video museum, switched to music explore & tried to add something to your music museum it would start playing random things from video exhibits.
+-  fixed onboarding tutorial blur and alignment.
+-  other minor bug/playback issues
 
 UPDATE 1.7
 
 Release Notes:
 
-Fixed a playback bug I found on older android devices that would get scrolling stuck in a loop of 10-12 videos
-changed the way exhibits look & function. now you can save videos to the museum/exhibits but when you click on the exhibit it shows your saved shows or movies in a list view. when you click on them it opens the regular player.
-added episode/time tracking. now it will remember you were on episode 3 and 33 minutes in. so you can just click on the show and resume where you were.
+-  Fixed a playback bug I found on older android devices that would get scrolling stuck in a loop of 10-12 videos
+-  changed the way exhibits look & function. now you can save videos to the museum/exhibits but when you click on the exhibit it shows your saved shows or movies in a list view. when you click on them it opens the regular player.
+-  added episode/time tracking. now it will remember you were on episode 3 and 33 minutes in. so you can just click on the show and resume where you were.
+
 UPDATE 1.6
 
 Release Notes:
 
-finally figured out how to fully randomize the explore feed. running across the same videos/music shouldn't happen as often now.
-added dynamically changing color backgrounds to the feed based on the video colors. gets rid of most of the screen being black all the time. also fixed the album cover backgrounds in music mode.
-added a NSFW toggle to the filters/settings menu on the video feed. there was slightly too much NSFW stuff by default. the default setting is to try not to show NSFW material but you can toggle it on.
+-  finally figured out how to fully randomize the explore feed. running across the same videos/music shouldn't happen as often now.
+-  added dynamically changing color backgrounds to the feed based on the video colors. gets rid of most of the screen being black all the time. also fixed the album cover backgrounds in music mode.
+-  added a NSFW toggle to the filters/settings menu on the video feed. there was slightly too much NSFW stuff by default. the default setting is to try not to show NSFW material but you can toggle it on.
+
 Update 1.5
 
 release notes:
 
-fixed the "randomizer" for the explore feed. it should fix the issue everyone was having with similar sequences of videos/audio on the feed every time the app is opened.
-added a "search" function. i'm kind of against adding a full on search page to the app right now but to compromise with the people who wanted it the search feature is basically a custom tag bar that changes the explore feed to what you want. it overrides any filter tags you've input to only show the search tags in the feed & once you remove them the app reverts back to the regular filter tags you already had set. so if you just want your feed to be "pokemon" "halo" & "the matrix" add those tags and that's all the feed will show until you remove them.
-i also added the ability to upload custom exhibit covers in the museum. if you choose to do that you will have to grant gallery permissions, but only if you want to use that feature. if you don't the app has no access to anything in your phone still. & right now the museum defaults to the exhibits using a screenshot from a random video in the exhibit. or you can turn images off and set the exhibits to different colors/gradients. again though, it will only ask for permissions if you want to use the custom cover photo option.
-fixed some loading issues that would cause the app to freeze occasionally.
+-  fixed the "randomizer" for the explore feed. it should fix the issue everyone was having with similar sequences of videos/audio on the feed every time the app is opened.
+-  added a "search" function. i'm kind of against adding a full on search page to the app right now but to compromise with the people who wanted it the search feature is basically a custom tag bar that changes the explore feed to what you want. it overrides any filter tags you've input to only show the search tags in the feed & once you remove them the app reverts back to the regular filter tags you already had set. so if you just want your feed to be "pokemon" "halo" & "the matrix" add those tags and that's all the feed will show until you remove them.
+-  i also added the ability to upload custom exhibit covers in the museum. if you choose to do that you will have to grant gallery permissions, but only if you want to use that feature. if you don't the app has no access to anything in your phone still. & right now the museum defaults to the exhibits using a screenshot from a random video in the exhibit. or you can turn images off and set the exhibits to different colors/gradients. again though, it will only ask for permissions if you want to use the custom cover photo option.
+-  fixed some loading issues that would cause the app to freeze occasionally.
+
 UPDATE 1.4
 
 release notes:
 
-slightly change the yellow theme to a darker orange-yellow color
-increased load times slightly on all media loaded
-added a new Music explore mode. with a green theme to differentiate between the two modes. same functionality as the video mode, scroll up and down for new songs/projects/playlists, scroll left and right to move through them.
-added a separate Museum/Exhibit for audio to be able to make music playlists
-added background play. works 99% of the time but i've had a few instances where it didn't & i'm unsure what caused it. but you should be able to close the app or lock your screen and continue media playback.
+-  slightly change the yellow theme to a darker orange-yellow color
+-  increased load times slightly on all media loaded
+-  added a new Music explore mode. with a green theme to differentiate between the two modes. same functionality as the video mode, scroll up and down for new songs/projects/playlists, scroll left and right to move through them.
+-  added a separate Museum/Exhibit for audio to be able to make music playlists
+-  added background play. works 99% of the time but i've had a few instances where it didn't & i'm unsure what caused it. but you should be able to close the app or lock your screen and continue media playback.
+
 UPDATE 1.3
 
 Update notes:
 
-minor bug fixes/layout tweaks.
-fixed come review/comment bugs that caused them not to display on some videos
-saved feature is now the Museum/Exhibit feature. works better, more organized, can edit the exhibit tiles.
-added a buffering/loading icon when the video content is taking some time to load. just a loading wheel that says "diving into the archive". looks/feels better than a black screen
+-  minor bug fixes/layout tweaks.
+-  fixed come review/comment bugs that caused them not to display on some videos
+-  saved feature is now the Museum/Exhibit feature. works better, more organized, can edit the exhibit tiles.
+-  added a buffering/loading icon when the video content is taking some time to load. just a loading wheel that says "diving into the archive". looks/feels better than a black screen
+
 UPDATE 1.2
 
 Update Notes
 
-fixed bug in filtering menu
-fixed video description length & added "show more" for longer video descriptions
-added a review/comment section. it is read only in the app & pulled directly from internet archive. if you need/want to comment on the video you have to click the web button and comment on the site. (might add logging in with your archive account later on if the community wants that but we are trying to maintain user privacy in the app)
-fixed playback bar length bug where it would overlap the side buttons.
+-  fixed bug in filtering menu
+-  fixed video description length & added "show more" for longer video descriptions
+-  added a review/comment section. it is read only in the app & pulled directly from internet archive. if you need/want to comment on the video you have to click the web button and comment on the site. (might add logging in with your archive account later on if the community wants that but we are trying to maintain user privacy in the app)
+-  fixed playback bar length bug where it would overlap the side buttons.
+
 UPDATE 1.1
 
 Mostly fixes with the layout, playback & features.
 
-users can now adjust the liked video tags for their feed after the initial onboarding.
-removed the fit/fill feature. basically all content looks horrible in vertical aspect ratios. now all content plays in it's original aspect ratio.
-added a full screen option for videos. (removes all other text/overlay on the screen.
-fixed a playback issue where turning your phone into landscape mode restarted the playback for the video.
-added a timeline scrub bar to the normal overlay so users can scrub through videos like a normal media player. the double tap on the left and right side function remains as well. right side is forward 30 seconds and left side is back 10 seconds.
-fixed an issue where the tutorial/onboarding would cut off early without finishing.
+-  users can now adjust the liked video tags for their feed after the initial onboarding.
+-  removed the fit/fill feature. basically all content looks horrible in vertical aspect ratios. now all content plays in it's original aspect ratio.
+-  added a full screen option for videos. (removes all other text/overlay on the screen.
+-  fixed a playback issue where turning your phone into landscape mode restarted the playback for the video.
+-  added a timeline scrub bar to the normal overlay so users can scrub through videos like a normal media player. the double tap on the left and right side function remains as well. right side is forward 30 seconds and left side is back 10 seconds.
+-  fixed an issue where the tutorial/onboarding would cut off early without finishing.
 
 ## 📱 Get the App
 Archive Dive is available for free. Download the APK and start exploring the archives today.
