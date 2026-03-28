@@ -1,5 +1,8 @@
 # Archive Dive
 
+## Development is being moved to Google Play Store on April 1st, 2026. 
+Primarily to simplify development and not have to maintain 2 different versions of the same app. Version 1.9.5 will be available on here until that date. Once the app is out of Beta & on the App store the link will be added to the repo.
+
 <img width="512" height="512" alt="Archive Dive Logo" src="https://github.com/user-attachments/assets/e2c1eb6d-53f9-40c6-b812-8d007231dffe" />
 
 
